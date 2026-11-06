@@ -1,85 +1,85 @@
-import { tick } from "svelte";
-import type { Editor } from "./editor.svelte";
-import { label, ROOT_ID } from "./model";
+import type { KeyHint, KeySection } from "../vim-keys.svelte";
+import { SHARED_KEYS, VimKeys } from "../vim-keys.svelte";
+import type { Mode, TreeEditor } from "./editor.svelte";
+import { ROOT_ID } from "./model";
 
-const PENDING_TIMEOUT_MS = 1200;
-const FLASH_TIMEOUT_MS = 1800;
-const MAX_COUNT = 999;
+export const HINTS: Record<Mode, KeyHint[]> = {
+  tree: [
+    [["h", "l"], "left / right"],
+    [["j", "k"], "child / parent"],
+    [["i"], "rename"],
+    [["a"], "add child"],
+    [["o"], "add sibling"],
+    [["dd"], "delete"],
+    [["H", "L"], "move"],
+    [["t"], "test grid"],
+    [["?"], "all keys"],
+  ],
+  grid: [
+    [["h", "l"], "class"],
+    [["j", "k"], "test case"],
+    [["x"], "toggle dot"],
+    [["o"], "new test"],
+    [["dd"], "delete test"],
+    [["J", "K"], "move test"],
+    [["t"], "tree"],
+    [["?"], "all keys"],
+  ],
+};
 
-/** Vim-style key handling: counts, two-key sequences and the status flash. */
-export class VimKeys {
-  pending = $state("");
-  count = $state("");
-  flash = $state("");
+export const HELP_SECTIONS: KeySection[] = [
+  {
+    title: "Anywhere",
+    keys: [
+      [["t"], "Switch between tree and test grid"],
+      [["Esc"], "Back to tree mode"],
+      [["v"], "Show / hide background dots"],
+      ...SHARED_KEYS,
+    ],
+  },
+  {
+    title: "Tree mode",
+    keys: [
+      [["h", "l"], "Node to the left / right"],
+      [["j", "k"], "First child / parent"],
+      [["gg"], "Root"],
+      [["i", "↵"], "Rename"],
+      [["c"], "Rename, replacing the text"],
+      [["a"], "Add child (class or classification)"],
+      [["o", "O"], "Add sibling after / before"],
+      [["dd"], "Delete node"],
+      [["H", "L"], "Move node left / right"],
+    ],
+  },
+  {
+    title: "Grid mode",
+    keys: [
+      [["h", "l"], "Previous / next leaf class"],
+      [["j", "k"], "Next / previous test case"],
+      [["0", "$"], "First / last leaf class"],
+      [["gg", "G"], "First / last test case"],
+      [["x", "␣"], "Toggle dot"],
+      [["o", "O"], "New test case below / above"],
+      [["dd"], "Delete test case"],
+      [["J", "K"], "Move test case down / up"],
+    ],
+  },
+];
 
-  #editor: Editor;
-  #pendingTimer?: ReturnType<typeof setTimeout>;
-  #flashTimer?: ReturnType<typeof setTimeout>;
-
-  constructor(editor: Editor) {
-    this.#editor = editor;
+export class TreeKeys extends VimKeys<TreeEditor> {
+  protected cursorElement() {
+    const { mode, sel } = this.editor;
+    return mode === "grid"
+      ? document.getElementById("grid-cursor")
+      : document.querySelector(`[data-node="${sel}"]`);
   }
 
-  #showFlash(message: string) {
-    this.flash = message;
-    clearTimeout(this.#flashTimer);
-    this.#flashTimer = setTimeout(() => (this.flash = ""), FLASH_TIMEOUT_MS);
-  }
-
-  #setPending(pending: string) {
-    this.pending = pending;
-    clearTimeout(this.#pendingTimer);
-    this.#pendingTimer = setTimeout(() => {
-      this.pending = "";
-      this.count = "";
-    }, PENDING_TIMEOUT_MS);
-  }
-
-  async #scrollToCursor() {
-    await tick();
-    const { mode, sel } = this.#editor;
-    const cursor =
-      mode === "grid"
-        ? document.getElementById("grid-cursor")
-        : document.querySelector(`[data-node="${sel}"]`);
-    cursor?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-
-  #undo() {
-    if (this.#editor.past.length) {
-      this.#editor.undo();
-      this.#showFlash("Undo");
-    } else {
-      this.#showFlash("Nothing to undo");
-    }
-  }
-
-  #redo() {
-    if (this.#editor.future.length) {
-      this.#editor.redo();
-      this.#showFlash("Redo");
-    } else {
-      this.#showFlash("Nothing to redo");
-    }
-  }
-
-  #cycleTree(delta: number) {
-    this.#editor.cycleTree(delta);
-    this.#showFlash(label(this.#editor.tree.name));
-  }
-
-  #runAnyMode(seq: string, n: number) {
-    const e = this.#editor;
+  protected run(seq: string, n: number) {
+    const e = this.editor;
     switch (seq) {
-      case "?":
-        e.dialog = "help";
-        return true;
-      case "u":
-        this.#undo();
-        return true;
       case "v":
         e.setShowDots(!e.showDots);
-        this.#showFlash(
+        this.showFlash(
           e.showDots ? "Background dots shown" : "Background dots hidden",
         );
         return true;
@@ -89,19 +89,14 @@ export class VimKeys {
       case "Escape":
         if (e.mode === "grid") e.setMode("tree");
         return true;
-      case "gt":
-        this.#cycleTree(n);
-        return true;
-      case "gT":
-        this.#cycleTree(-n);
-        return true;
-      default:
-        return false;
     }
+    return e.mode === "tree"
+      ? this.#runTreeMode(seq, n)
+      : this.#runGridMode(seq, n);
   }
 
   #runTreeMode(seq: string, n: number) {
-    const e = this.#editor;
+    const e = this.editor;
     const repeat = (step: () => void) => {
       for (let i = 0; i < n; i++) step();
     };
@@ -140,7 +135,7 @@ export class VimKeys {
       case "Delete":
       case "Backspace":
         if (e.selected.kind === "root") {
-          this.#showFlash("The root cannot be deleted");
+          this.showFlash("The root cannot be deleted");
         } else {
           e.deleteSelected();
         }
@@ -155,9 +150,9 @@ export class VimKeys {
   }
 
   #runGridMode(seq: string, n: number) {
-    const e = this.#editor;
+    const e = this.editor;
     const lastCol = Math.max(0, e.layout.leaves.length - 1);
-    const lastRow = Math.max(0, e.tree.tests.length - 1);
+    const lastRow = Math.max(0, e.current.tests.length - 1);
     const repeat = (step: () => boolean) => {
       for (let i = 0; i < n && step(); i++);
     };
@@ -208,88 +203,4 @@ export class VimKeys {
         return false;
     }
   }
-
-  #handleDialogKey(event: KeyboardEvent) {
-    const e = this.#editor;
-    const helpClose =
-      e.dialog === "help" && (event.key === "?" || event.key === "q");
-    if (event.key === "Escape" || helpClose) {
-      event.preventDefault();
-      e.closeDialog();
-    }
-  }
-
-  handle = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing) return;
-    const e = this.#editor;
-    if (e.dialog) {
-      this.#handleDialogKey(event);
-      return;
-    }
-
-    const target = event.target as HTMLElement;
-    if (
-      /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) ||
-      target.isContentEditable
-    ) {
-      return;
-    }
-
-    const mod = event.ctrlKey || event.metaKey;
-    const lower = event.key.toLowerCase();
-    if (mod && lower === "z") {
-      event.preventDefault();
-      if (event.shiftKey) e.redo();
-      else e.undo();
-      return;
-    }
-    if (
-      mod &&
-      (lower === "y" || (lower === "r" && event.ctrlKey && !event.metaKey))
-    ) {
-      event.preventDefault();
-      this.#redo();
-      return;
-    }
-    if (mod || event.altKey) return;
-
-    const key = event.key;
-    if (key === "Shift" || key === "CapsLock") return;
-    if (
-      (key === "Enter" || key === " ") &&
-      target.closest("button, a, select")
-    ) {
-      return;
-    }
-    if (/^[1-9]$/.test(key) || (key === "0" && this.count)) {
-      event.preventDefault();
-      this.count += key;
-      this.#setPending(this.pending);
-      return;
-    }
-    if (!this.pending && (key === "g" || key === "d")) {
-      event.preventDefault();
-      this.#setPending(key);
-      return;
-    }
-
-    const seq = this.pending + key;
-    const n = Math.max(1, Math.min(parseInt(this.count || "1", 10), MAX_COUNT));
-    this.pending = "";
-    this.count = "";
-    clearTimeout(this.#pendingTimer);
-
-    const handled =
-      this.#runAnyMode(seq, n) ||
-      (e.mode === "tree"
-        ? this.#runTreeMode(seq, n)
-        : this.#runGridMode(seq, n));
-    if (handled) {
-      event.preventDefault();
-      // A key that moved on from a tabbed-to node must not leave it focused,
-      // or Enter and Space would go on acting on that node.
-      if (target.closest("[data-node]")) target.blur();
-      this.#scrollToCursor();
-    }
-  };
 }

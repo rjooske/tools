@@ -1,75 +1,62 @@
 <script lang="ts">
-  import { theme } from "#lib/theme.svelte.ts";
-  import { IO_BUTTON_ID, type Editor } from "../editor.svelte";
-  import { label } from "../model";
+  import type { Snippet } from "svelte";
+  import {
+    IO_BUTTON_ID,
+    type AnyDocumentEditor,
+  } from "../document-editor.svelte";
+  import { theme } from "../theme.svelte";
+  import { label } from "../util";
 
   const ARM_TIMEOUT_MS = 3000;
 
-  let { editor }: { editor: Editor } = $props();
+  let {
+    editor,
+    title,
+    icon,
+  }: { editor: AnyDocumentEditor; title: string; icon: Snippet } = $props();
 
   let armed = $state(false);
   let armTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function deleteTree() {
+  function deleteDocument() {
     clearTimeout(armTimer);
     if (armed) {
       armed = false;
-      editor.deleteTree();
+      editor.deleteDocument();
     } else {
       armed = true;
       armTimer = setTimeout(() => (armed = false), ARM_TIMEOUT_MS);
     }
   }
 
-  function changeTree(event: Event & { currentTarget: HTMLSelectElement }) {
-    editor.switchTree(event.currentTarget.value);
+  function changeDocument(event: Event & { currentTarget: HTMLSelectElement }) {
+    editor.switchTo(event.currentTarget.value);
     event.currentTarget.blur();
   }
 </script>
 
 <header class="bar">
   <div class="brand">
-    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-      <circle
-        cx="11"
-        cy="3"
-        r="2.2"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.4"
-      />
-      <rect
-        x="5"
-        y="7"
-        width="12"
-        height="5"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.4"
-      />
-      <path
-        d="M11 5.2V7M9 12L4 19M13 12l5 7M4 19h14"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.4"
-      />
-    </svg>
-    <span>Classification Tree Editor</span>
+    {@render icon()}
+    <span>{title}</span>
   </div>
 
   <div class="group">
-    <label for="tree-select" class="sr">Current tree</label>
-    <select id="tree-select" value={editor.tree.id} onchange={changeTree}>
-      {#each editor.store.trees as tree (tree.id)}
-        <option value={tree.id}>{label(tree.name)}</option>
+    <label for="doc-select" class="sr">Current {editor.noun}</label>
+    <select id="doc-select" value={editor.current.id} onchange={changeDocument}>
+      {#each editor.collection.docs as doc (doc.id)}
+        <option value={doc.id}>{label(doc.name)}</option>
       {/each}
     </select>
-    <span class="k tree-keys" title="Next / previous tree">gt gT</span>
-    <button class="btn" onclick={() => editor.newTree()}>New tree</button>
-    <button class="btn" onclick={() => editor.duplicateTree()}>Duplicate</button
-    >
-    <button class="btn danger" class:armed onclick={deleteTree}>
-      {armed ? "Click again to delete" : "Delete tree"}
+    <span class="k doc-keys" title="Next / previous {editor.noun}">gt gT</span>
+    <button class="btn" onclick={() => editor.newDocument()}>
+      New {editor.noun}
+    </button>
+    <button class="btn" onclick={() => editor.duplicateDocument()}>
+      Duplicate
+    </button>
+    <button class="btn danger" class:armed onclick={deleteDocument}>
+      {armed ? "Click again to delete" : `Delete ${editor.noun}`}
     </button>
   </div>
 
@@ -124,7 +111,7 @@
     font-size: 16px;
     letter-spacing: -0.01em;
 
-    svg {
+    :global(svg) {
       flex: none;
     }
   }
@@ -136,7 +123,7 @@
     gap: 6px;
   }
 
-  .tree-keys {
+  .doc-keys {
     margin-left: 0;
   }
 </style>

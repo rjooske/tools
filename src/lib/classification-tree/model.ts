@@ -1,3 +1,6 @@
+import type { ParseResult } from "../document-editor.svelte";
+import { label, uid } from "../util";
+
 export type Class = { id: string; name: string; children: Classification[] };
 export type Classification = { id: string; name: string; classes: Class[] };
 export type Root = { id: "root"; children: Classification[] };
@@ -9,7 +12,6 @@ export type Tree = {
   root: Root;
   tests: TestCase[];
 };
-export type Store = { trees: Tree[]; currentId: string };
 
 export type RootEntry = {
   kind: "root";
@@ -42,8 +44,6 @@ export type SortOrder = "tree" | "fewest" | "most" | "conflicts" | "reverse";
 export const ROOT_ID = "root";
 export const ALL_COMBINATIONS_CAP = 400;
 
-export const uid = () => Math.random().toString(36).slice(2, 10);
-
 export const classification = (
   name: string,
   classes: Class[] = [],
@@ -69,9 +69,6 @@ export const newTest = (picks: string[] = []): TestCase => ({
   id: uid(),
   picks,
 });
-
-export const label = (s: string | undefined) =>
-  s && s.trim() ? s : "(unnamed)";
 
 export function indexTree(tree: Tree): TreeIndex {
   const entries: TreeIndex = new Map();
@@ -355,7 +352,7 @@ function reId(json: TreeJson): TestCase[] {
   );
 }
 
-export function parseTree(text: string): { tree: Tree } | { error: string } {
+export function parseTree(text: string): ParseResult<Tree> {
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -372,7 +369,7 @@ export function parseTree(text: string): { tree: Tree } | { error: string } {
   }
   const tests = reId(json);
   return {
-    tree: {
+    doc: {
       id: uid(),
       name:
         typeof json.name === "string"

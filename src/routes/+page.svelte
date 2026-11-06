@@ -12,6 +12,7 @@
     <li>
       <a href={resolve("/classification-tree")}>Classification Tree Editor</a>
     </li>
+    <li><a href={resolve("/decision-table")}>Decision Table Editor</a></li>
   </ul>
 </main>
 

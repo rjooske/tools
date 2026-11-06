@@ -1,4 +1,5 @@
-import { label, type Class, type Classification, type Tree } from "./model";
+import { label } from "../util";
+import type { Class, Classification, Tree } from "./model";
 
 export const LEFT = 64;
 export const ROW_HEIGHT = 32;

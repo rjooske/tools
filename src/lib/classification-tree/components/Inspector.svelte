@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Editor } from "../editor.svelte";
+  import type { TreeEditor } from "../editor.svelte";
   import { pathOf } from "../model";
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor }: { editor: TreeEditor } = $props();
 
   let entry = $derived(editor.selected);
   let siblings = $derived.by(() => {
@@ -52,15 +52,15 @@
 {/snippet}
 
 {#if entry.kind === "root"}
-  <div class="head"><span class="kind">Tree</span></div>
-  {@render nameField("Tree name", editor.tree.name)}
+  <div class="inspector-head"><span class="kind">Tree</span></div>
+  {@render nameField("Tree name", editor.current.name)}
   <label class="field" for="notes-input">
     <span>Specification notes</span>
     <textarea
       id="notes-input"
       rows="6"
       placeholder="Paste the informal spec you are modelling"
-      value={editor.tree.notes ?? ""}
+      value={editor.current.notes ?? ""}
       onfocusin={() => editor.beginTextEdit()}
       oninput={(event) => editor.setNotes(event.currentTarget.value)}
     ></textarea>
@@ -76,7 +76,7 @@
   </p>
 {:else if entry.kind === "classification"}
   {@const classCount = entry.node.classes.length}
-  <div class="head">
+  <div class="inspector-head">
     <span class="kind">Classification</span>
     <span class="crumbs">{pathOf(entry)}</span>
   </div>
@@ -100,7 +100,7 @@
   </div>
 {:else}
   {@const refinements = entry.node.children.length}
-  <div class="head">
+  <div class="inspector-head">
     <span class="kind">Class</span>
     <span class="crumbs">{pathOf(entry)}</span>
   </div>
@@ -179,43 +179,6 @@
 </div>
 
 <style lang="scss">
-  .head {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .kind {
-    align-self: flex-start;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-
-  .crumbs {
-    font-size: 12px;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    overflow-wrap: anywhere;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    > span {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--muted);
-    }
-  }
-
   .legend {
     border-top: 1px solid var(--line);
     padding-top: 12px;

@@ -1,4 +1,4 @@
-import { tick } from "svelte";
+import { DocumentEditor } from "../document-editor.svelte";
 import { examples } from "./examples";
 import { layoutTree, type Measure } from "./layout";
 import {
@@ -10,45 +10,28 @@ import {
   generateAll,
   generateMinimal,
   indexTree,
-  label,
   leafClass,
   leavesOf,
+  moveNode,
   newClassification,
   newTest,
-  moveNode,
+  parseTree,
   prune,
   removeNode,
   ROOT_ID,
   rowInfo,
   sortTests,
   togglePick,
-  uid,
   type SortOrder,
-  type Store,
   type Tree,
 } from "./model";
 
 export type Mode = "tree" | "grid";
-export type Dialog = "help" | "io";
 
 const STORE_KEY = "ct-editor-v1";
 const DOTS_KEY = "ct-editor-dots";
-const HISTORY_LIMIT = 150;
 /** Must match --font-ui, or node boxes won't fit their labels. */
 const FONT = "system-ui, sans-serif";
-
-export const IO_BUTTON_ID = "btn-io";
-
-function loadStore(): Store {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null");
-    if (s && Array.isArray(s.trees) && s.trees.length) return s;
-  } catch {
-    // Unavailable or corrupt storage falls through to the examples.
-  }
-  const trees = examples();
-  return { trees, currentId: trees[0].id };
-}
 
 function loadShowDots() {
   try {
@@ -66,117 +49,87 @@ function canvasMeasure(): Measure {
   };
 }
 
-export class Editor {
-  store = $state<Store>(loadStore());
+export class TreeEditor extends DocumentEditor<Tree> {
+  readonly noun = "tree";
+
   sel = $state<string>(ROOT_ID);
   mode = $state<Mode>("tree");
   gridRow = $state(0);
   gridCol = $state(0);
   showDots = $state(loadShowDots());
-  dialog = $state<Dialog | null>(null);
-  past = $state<string[]>([]);
-  future = $state<string[]>([]);
-  nameInput = $state.raw<HTMLInputElement>();
 
   #measure = canvasMeasure();
-  #coalescingEdit = false;
 
-  tree = $derived(
-    this.store.trees.find((t) => t.id === this.store.currentId) ??
-      this.store.trees[0],
-  );
-  entries = $derived(indexTree(this.tree));
+  entries = $derived(indexTree(this.current));
   selected = $derived(this.entries.get(this.sel) ?? this.entries.get(ROOT_ID)!);
-  layout = $derived(layoutTree(this.tree, this.#measure));
+  layout = $derived(layoutTree(this.current, this.#measure));
   rows = $derived(
-    this.tree.tests.map((test) => ({
+    this.current.tests.map((test) => ({
       test,
       info: rowInfo(this.entries, test),
     })),
   );
-  covered = $derived(coveredLeaves(this.tree));
-  combinations = $derived(allCombinations(this.tree.root));
+  covered = $derived(coveredLeaves(this.current));
+  combinations = $derived(allCombinations(this.current.root));
   gridCursorVisible = $derived(
     this.mode === "grid" &&
-      this.tree.tests.length > 0 &&
+      this.current.tests.length > 0 &&
       this.layout.leaves.length > 0,
   );
 
-  #persist() {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(this.store));
-    } catch {
-      // Storage full or blocked: the editor keeps working in memory.
-    }
+  constructor() {
+    super(STORE_KEY, examples);
   }
 
-  #snapshot() {
-    this.past.push(JSON.stringify(this.store));
-    if (this.past.length > HISTORY_LIMIT) this.past.shift();
-    this.future = [];
+  exportCurrent() {
+    return exportTree(this.current);
   }
 
-  #settle() {
+  parseDocument(text: string) {
+    return parseTree(text);
+  }
+
+  protected blankDocument() {
+    return blankTree();
+  }
+
+  protected normalize(tree: Tree) {
+    prune(tree);
+  }
+
+  protected settleCursor() {
     if (!this.entries.has(this.sel)) this.sel = ROOT_ID;
     this.#clampGrid();
-    this.#persist();
+  }
+
+  protected resetCursor() {
+    this.sel = ROOT_ID;
+    this.gridRow = 0;
+    this.gridCol = 0;
+  }
+
+  protected focusDocumentName() {
+    this.select(ROOT_ID, true);
   }
 
   #clampGrid() {
-    const lastRow = this.tree.tests.length - 1;
-    const lastCol = leavesOf(this.tree).length - 1;
+    const lastRow = this.current.tests.length - 1;
+    const lastCol = leavesOf(this.current).length - 1;
     this.gridRow = Math.max(0, Math.min(this.gridRow, lastRow));
     this.gridCol = Math.max(0, Math.min(this.gridCol, lastCol));
   }
 
-  commit(change: () => void) {
-    this.#snapshot();
-    change();
-    prune(this.tree);
-    this.#settle();
-  }
-
-  undo() {
-    const previous = this.past.pop();
-    if (previous === undefined) return;
-    this.future.push(JSON.stringify(this.store));
-    this.store = JSON.parse(previous);
-    this.#settle();
-  }
-
-  redo() {
-    const next = this.future.pop();
-    if (next === undefined) return;
-    this.past.push(JSON.stringify(this.store));
-    this.store = JSON.parse(next);
-    this.#settle();
-  }
-
-  /** Marks the start of a run of keystrokes that undo as one step. */
-  beginTextEdit() {
-    this.#coalescingEdit = false;
-  }
-
-  #textEdit(change: () => void) {
-    if (!this.#coalescingEdit) {
-      this.#snapshot();
-      this.#coalescingEdit = true;
-    }
-    change();
-    this.#persist();
-  }
-
   setSelectedName(name: string) {
     const entry = this.selected;
-    this.#textEdit(() => {
-      if (entry.kind === "root") this.tree.name = name;
+    this.textEdit(() => {
+      if (entry.kind === "root") this.current.name = name;
       else entry.node.name = name;
     });
   }
 
   setNotes(notes: string) {
-    this.#textEdit(() => {
-      this.tree.notes = notes;
+    this.textEdit(() => {
+      this.current.notes = notes;
     });
   }
 
@@ -186,17 +139,8 @@ export class Editor {
     if (focusName) this.focusName(true);
   }
 
-  async focusName(selectAll: boolean) {
-    await tick();
-    const input = this.nameInput;
-    if (!input) return;
-    input.focus();
-    if (selectAll) input.select();
-    else input.setSelectionRange(input.value.length, input.value.length);
-  }
-
   setMode(mode: Mode) {
-    const leaves = leavesOf(this.tree);
+    const leaves = leavesOf(this.current);
     if (mode === "grid") {
       const i = leaves.findIndex((l) => l.id === this.sel);
       if (i >= 0) this.gridCol = i;
@@ -266,103 +210,51 @@ export class Editor {
     });
   }
 
-  // Trees
-
-  switchTree(id: string) {
-    this.store.currentId = id;
-    this.sel = ROOT_ID;
-    this.gridRow = 0;
-    this.gridCol = 0;
-    this.#persist();
-  }
-
-  cycleTree(delta: number) {
-    const { trees } = this.store;
-    const i = trees.findIndex((t) => t.id === this.tree.id);
-    const n = trees.length;
-    this.switchTree(trees[(((i + delta) % n) + n) % n].id);
-  }
-
-  #addTree(tree: Tree) {
-    this.commit(() => {
-      this.store.trees.push(tree);
-      this.store.currentId = tree.id;
-      this.sel = ROOT_ID;
-    });
-  }
-
-  newTree() {
-    this.#addTree(blankTree());
-    this.select(ROOT_ID, true);
-  }
-
-  duplicateTree() {
-    const copy: Tree = JSON.parse(JSON.stringify(this.tree));
-    copy.id = uid();
-    copy.name = `${label(copy.name)} copy`;
-    this.#addTree(copy);
-  }
-
-  importTree(tree: Tree) {
-    this.#addTree(tree);
-  }
-
-  deleteTree() {
-    this.commit(() => {
-      this.store.trees = this.store.trees.filter(
-        (t) => t.id !== this.store.currentId,
-      );
-      if (!this.store.trees.length) this.store.trees.push(blankTree());
-      this.store.currentId = this.store.trees[0].id;
-      this.sel = ROOT_ID;
-    });
-  }
-
-  exportCurrentTree() {
-    return exportTree(this.tree);
-  }
-
   // Test cases
 
   addTest() {
     this.commit(() => {
-      this.tree.tests.push(newTest());
-      this.gridRow = this.tree.tests.length - 1;
+      this.current.tests.push(newTest());
+      this.gridRow = this.current.tests.length - 1;
     });
   }
 
   fillMinimal() {
     this.commit(() => {
-      this.tree.tests = generateMinimal(this.tree.root).map((p) => newTest(p));
+      this.current.tests = generateMinimal(this.current.root).map((p) =>
+        newTest(p),
+      );
     });
   }
 
   fillAll() {
     if (this.combinations > ALL_COMBINATIONS_CAP) return;
     this.commit(() => {
-      this.tree.tests = generateAll(this.tree.root).map((p) => newTest(p));
+      this.current.tests = generateAll(this.current.root).map((p) =>
+        newTest(p),
+      );
     });
   }
 
   clearTests() {
     this.commit(() => {
-      this.tree.tests = [];
+      this.current.tests = [];
     });
   }
 
   sortTests(how: SortOrder) {
-    this.commit(() => sortTests(this.tree, how));
+    this.commit(() => sortTests(this.current, how));
   }
 
   removeTest(id: string) {
     this.commit(() => {
-      this.tree.tests = this.tree.tests.filter((t) => t.id !== id);
+      this.current.tests = this.current.tests.filter((t) => t.id !== id);
     });
   }
 
   moveTest(id: string, to: number) {
     this.commit(() => {
-      const tests = this.tree.tests;
+      const tests = this.current.tests;
       const from = tests.findIndex((t) => t.id === id);
       if (from < 0) return;
       const [test] = tests.splice(from, 1);
@@ -371,7 +263,7 @@ export class Editor {
   }
 
   toggleCell(testId: string, leafId: string) {
-    const tests = this.tree.tests;
+    const tests = this.current.tests;
     this.gridRow = Math.max(
       0,
       tests.findIndex((t) => t.id === testId),
@@ -381,7 +273,7 @@ export class Editor {
       this.layout.leaves.findIndex((l) => l.id === leafId),
     );
     this.commit(() => {
-      const test = this.tree.tests.find((t) => t.id === testId);
+      const test = this.current.tests.find((t) => t.id === testId);
       if (test) togglePick(test, leafId);
     });
   }
@@ -389,14 +281,14 @@ export class Editor {
   // Grid cursor
 
   gridToggle() {
-    const test = this.tree.tests[this.gridRow];
+    const test = this.current.tests[this.gridRow];
     const leaf = this.layout.leaves[this.gridCol];
     if (test && leaf) this.toggleCell(test.id, leaf.id);
   }
 
   gridNewTest(before: boolean) {
     this.commit(() => {
-      const tests = this.tree.tests;
+      const tests = this.current.tests;
       const at = tests.length ? this.gridRow + (before ? 0 : 1) : 0;
       tests.splice(at, 0, newTest());
       this.gridRow = at;
@@ -404,15 +296,15 @@ export class Editor {
   }
 
   gridDeleteTest() {
-    if (!this.tree.tests.length) return;
+    if (!this.current.tests.length) return;
     this.commit(() => {
-      this.tree.tests.splice(this.gridRow, 1);
+      this.current.tests.splice(this.gridRow, 1);
     });
   }
 
   /** Returns false at either end, so that counted moves stop there. */
   gridMoveTest(dir: -1 | 1) {
-    const tests = this.tree.tests;
+    const tests = this.current.tests;
     const to = this.gridRow + dir;
     if (to < 0 || to >= tests.length) return false;
     const id = tests[this.gridRow].id;
@@ -445,13 +337,5 @@ export class Editor {
   stepUp() {
     const { parent } = this.selected;
     if (parent) this.sel = parent.node.id;
-  }
-
-  // Dialogs
-
-  closeDialog() {
-    const closing = this.dialog;
-    this.dialog = null;
-    if (closing === "io") document.getElementById(IO_BUTTON_ID)?.focus();
   }
 }

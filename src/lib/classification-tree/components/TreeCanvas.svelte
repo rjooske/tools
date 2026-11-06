@@ -1,9 +1,10 @@
 <script lang="ts">
-  import type { Editor } from "../editor.svelte";
+  import type { TreeEditor } from "../editor.svelte";
   import { LEFT, levelY, ROW_HEIGHT } from "../layout";
-  import { label, ROOT_ID } from "../model";
+  import { label } from "../../util";
+  import { ROOT_ID } from "../model";
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor }: { editor: TreeEditor } = $props();
 
   let layout = $derived(editor.layout);
   let rootPos = $derived(layout.pos[ROOT_ID]);
@@ -166,7 +167,7 @@
       <circle class="lbl-bg" cx={rootPos.x} cy={levelY(0)} r="11" />
       <circle class="rootdot" cx={rootPos.x} cy={levelY(0)} r="5" />
     </g>
-    {#if !editor.tree.root.children.length}
+    {#if !editor.current.root.children.length}
       <text class="emptynote" x={rootPos.x + 18} y={levelY(0) + 5}>
         Empty tree. Use “Add classification” in the panel.
       </text>

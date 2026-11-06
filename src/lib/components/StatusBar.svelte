@@ -1,52 +1,45 @@
-<script lang="ts">
-  import type { Editor, Mode } from "../editor.svelte";
-  import type { VimKeys } from "../keys.svelte";
-
-  let { editor, keys }: { editor: Editor; keys: VimKeys } = $props();
-
-  const HINTS: Record<Mode, [string[], string][]> = {
-    tree: [
-      [["h", "l"], "left / right"],
-      [["j", "k"], "child / parent"],
-      [["i"], "rename"],
-      [["a"], "add child"],
-      [["o"], "add sibling"],
-      [["dd"], "delete"],
-      [["H", "L"], "move"],
-      [["t"], "test grid"],
-      [["?"], "all keys"],
-    ],
-    grid: [
-      [["h", "l"], "class"],
-      [["j", "k"], "test case"],
-      [["x"], "toggle dot"],
-      [["o"], "new test"],
-      [["dd"], "delete test"],
-      [["J", "K"], "move test"],
-      [["t"], "tree"],
-      [["?"], "all keys"],
-    ],
+<script lang="ts" module>
+  export type ModeButton = {
+    label: string;
+    active: boolean;
+    title: string;
+    onclick: () => void;
   };
+</script>
 
-  function toggleMode(
-    event: MouseEvent & { currentTarget: HTMLButtonElement },
-  ) {
-    editor.toggleMode();
+<script lang="ts">
+  import type { AnyDocumentEditor } from "../document-editor.svelte";
+  import type { KeyHint, VimKeys } from "../vim-keys.svelte";
+
+  let {
+    keys,
+    hints,
+    mode,
+  }: {
+    keys: VimKeys<AnyDocumentEditor>;
+    hints: KeyHint[];
+    mode?: ModeButton;
+  } = $props();
+
+  function clickMode(event: MouseEvent & { currentTarget: HTMLButtonElement }) {
+    mode?.onclick();
     event.currentTarget.blur();
   }
 </script>
 
 <div class="status">
-  <button
-    class="mode"
-    class:grid={editor.mode === "grid"}
-    title="Switch between tree and test grid (t)"
-    onclick={toggleMode}
-  >
-    {editor.mode === "tree" ? "TREE" : "GRID"}
-  </button>
+  {#if mode}
+    <button
+      class="mode"
+      class:active={mode.active}
+      title={mode.title}
+      onclick={clickMode}
+    >
+      {mode.label}
+    </button>
+  {/if}
   <div class="hints">
-    {#each HINTS[editor.mode] as [hintKeys, description] (description)}
+    {#each hints as [hintKeys, description] (description)}
       <span class="hint">
         {#each hintKeys as key (key)}<span class="k">{key}</span
           >{/each}{description}
@@ -83,7 +76,7 @@
     background: var(--ink);
     color: var(--surface);
 
-    &.grid {
+    &.active {
       background: var(--accent);
     }
   }

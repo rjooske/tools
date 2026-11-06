@@ -38,7 +38,7 @@ test("edits survive a reload", async ({ page }) => {
   await page.getByRole("button", { name: "New tree" }).click();
   await page.keyboard.type("persisted");
   await page.reload();
-  await expect(page.locator("#tree-select option:checked")).toHaveText(
+  await expect(page.locator("#doc-select option:checked")).toHaveText(
     "persisted",
   );
 });
@@ -46,7 +46,7 @@ test("edits survive a reload", async ({ page }) => {
 test("import rejects bad JSON and accepts an export", async ({ page }) => {
   await page.getByRole("button", { name: "Import / Export" }).click();
   await page.getByRole("button", { name: "Import as new tree" }).click();
-  await expect(page.locator("#tree-select option:checked")).toHaveText(
+  await expect(page.locator("#doc-select option:checked")).toHaveText(
     "List search (example) (imported)",
   );
   await expect(page.getByRole("dialog")).toBeHidden();

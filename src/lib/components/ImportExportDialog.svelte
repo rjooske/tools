@@ -1,13 +1,12 @@
 <script lang="ts">
-  import Dialog from "#lib/components/Dialog.svelte";
   import { onMount, untrack } from "svelte";
-  import type { Editor } from "../editor.svelte";
-  import { parseTree } from "../model";
+  import type { AnyDocumentEditor } from "../document-editor.svelte";
+  import Dialog from "./Dialog.svelte";
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor }: { editor: AnyDocumentEditor } = $props();
 
   let textarea = $state<HTMLTextAreaElement>();
-  let text = $state(untrack(() => editor.exportCurrentTree()));
+  let text = $state(untrack(() => editor.exportCurrent()));
   let message = $state("");
   let isError = $state(false);
 
@@ -25,14 +24,14 @@
     }
   }
 
-  function importTree() {
-    const result = parseTree(text);
+  function importDocument() {
+    const result = editor.parseDocument(text);
     if ("error" in result) {
       isError = true;
       message = result.error;
       return;
     }
-    editor.importTree(result.tree);
+    editor.addDocument(result.doc);
     editor.closeDialog();
   }
 </script>
@@ -40,10 +39,10 @@
 <Dialog labelledby="io-h" onclose={() => editor.closeDialog()}>
   <h2 id="io-h">Import / Export</h2>
   <p class="explain">
-    The box holds the current tree as JSON. Copy it to keep a backup, or paste a
-    tree's JSON here and import it as a new tree.
+    The box holds the current {editor.noun} as JSON. Copy it to keep a backup, or
+    paste a {editor.noun}'s JSON here and import it as a new {editor.noun}.
   </p>
-  <label for="io-text" class="sr">Tree JSON</label>
+  <label for="io-text" class="sr">{editor.noun} JSON</label>
   <textarea
     id="io-text"
     spellcheck="false"
@@ -52,7 +51,9 @@
   <div class="msg" class:err={isError}>{message}</div>
   <div class="actions">
     <button class="btn primary" onclick={copy}>Copy JSON</button>
-    <button class="btn" onclick={importTree}>Import as new tree</button>
+    <button class="btn" onclick={importDocument}>
+      Import as new {editor.noun}
+    </button>
     <div class="spacer"></div>
     <button class="btn" onclick={() => editor.closeDialog()}>Close</button>
   </div>

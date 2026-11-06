@@ -3,11 +3,11 @@ import {
   leafClass,
   newTest,
   ROOT_ID,
-  uid,
   type Class,
   type Classification,
   type Tree,
 } from "./model";
+import { uid } from "../util";
 
 function preset(
   name: string,

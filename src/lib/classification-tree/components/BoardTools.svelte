@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Editor } from "../editor.svelte";
+  import type { TreeEditor } from "../editor.svelte";
   import { ALL_COMBINATIONS_CAP, type SortOrder } from "../model";
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor }: { editor: TreeEditor } = $props();
 
   let tooManyCombinations = $derived(
     editor.combinations > ALL_COMBINATIONS_CAP,
@@ -36,7 +36,7 @@
   >
   <button
     class="btn"
-    disabled={!editor.tree.tests.length}
+    disabled={!editor.current.tests.length}
     onclick={() => editor.clearTests()}>Clear test cases</button
   >
   <button
@@ -51,7 +51,7 @@
   <label for="sort-select" class="sr">Sort test cases</label>
   <select
     id="sort-select"
-    disabled={editor.tree.tests.length < 2}
+    disabled={editor.current.tests.length < 2}
     onchange={sort}
   >
     <option value="">Sort test cases…</option>

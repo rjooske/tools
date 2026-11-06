@@ -92,7 +92,7 @@ describe("parseTree", () => {
   it("round-trips an export with fresh ids", () => {
     const result = parseTree(exportTree(listSearch));
     if ("error" in result) throw new Error(result.error);
-    const { tree } = result;
+    const tree = result.doc;
     expect(tree.name).toBe("List search (example) (imported)");
     expect(tree.id).not.toBe(listSearch.id);
     expect(tree.tests).toHaveLength(listSearch.tests.length);

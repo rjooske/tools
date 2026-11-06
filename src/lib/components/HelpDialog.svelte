@@ -1,51 +1,13 @@
 <script lang="ts">
-  import Dialog from "#lib/components/Dialog.svelte";
   import { onMount } from "svelte";
-  import type { Editor } from "../editor.svelte";
+  import type { AnyDocumentEditor } from "../document-editor.svelte";
+  import type { KeySection } from "../vim-keys.svelte";
+  import Dialog from "./Dialog.svelte";
 
-  let { editor }: { editor: Editor } = $props();
-
-  const SECTIONS: { title: string; keys: [string[], string][] }[] = [
-    {
-      title: "Anywhere",
-      keys: [
-        [["t"], "Switch between tree and test grid"],
-        [["Esc"], "Back to tree mode"],
-        [["u"], "Undo"],
-        [["^R"], "Redo"],
-        [["v"], "Show / hide background dots"],
-        [["gt", "gT"], "Next / previous tree"],
-        [["?"], "This list"],
-      ],
-    },
-    {
-      title: "Tree mode",
-      keys: [
-        [["h", "l"], "Node to the left / right"],
-        [["j", "k"], "First child / parent"],
-        [["gg"], "Root"],
-        [["i", "↵"], "Rename"],
-        [["c"], "Rename, replacing the text"],
-        [["a"], "Add child (class or classification)"],
-        [["o", "O"], "Add sibling after / before"],
-        [["dd"], "Delete node"],
-        [["H", "L"], "Move node left / right"],
-      ],
-    },
-    {
-      title: "Grid mode",
-      keys: [
-        [["h", "l"], "Previous / next leaf class"],
-        [["j", "k"], "Next / previous test case"],
-        [["0", "$"], "First / last leaf class"],
-        [["gg", "G"], "First / last test case"],
-        [["x", "␣"], "Toggle dot"],
-        [["o", "O"], "New test case below / above"],
-        [["dd"], "Delete test case"],
-        [["J", "K"], "Move test case down / up"],
-      ],
-    },
-  ];
+  let {
+    editor,
+    sections,
+  }: { editor: AnyDocumentEditor; sections: KeySection[] } = $props();
 
   let closeButton = $state<HTMLButtonElement>();
 
@@ -64,13 +26,13 @@
     </button>
   </div>
   <p class="explain">
-    Keys work whenever you are not typing in a field. The bar under the diagram
-    shows the current mode and its main keys. Moves accept a count, e.g.
+    Keys work whenever you are not typing in a field. The status bar shows the
+    main keys. Moves accept a count, e.g.
     <span class="k">3</span><span class="k">j</span>. While renaming, press
     Enter or Esc to finish.
   </p>
   <div class="keys">
-    {#each SECTIONS as section (section.title)}
+    {#each sections as section (section.title)}
       <section>
         <h3>{section.title}</h3>
         <dl>

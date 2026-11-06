@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import type { Editor } from "../editor.svelte";
-  import { label } from "../model";
+  import type { TreeEditor } from "../editor.svelte";
+  import { label } from "../../util";
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor }: { editor: TreeEditor } = $props();
 
   let list = $state<HTMLOListElement>();
   let dragId = $state<string | null>(null);
@@ -43,7 +43,7 @@
     const dragged = dragId;
     if (!dragged) return;
     event.preventDefault();
-    const tests = editor.tree.tests;
+    const tests = editor.current.tests;
     const from = tests.findIndex((t) => t.id === dragged);
     let to = tests.findIndex((t) => t.id === id) + (dropTarget?.after ? 1 : 0);
     if (from < to) to -= 1;
@@ -57,7 +57,7 @@
   }
 </script>
 
-<section class="cases" aria-labelledby="cases-h">
+<section class="panel" aria-labelledby="cases-h">
   <h2 id="cases-h">Test cases</h2>
   <ol bind:this={list}>
     {#each editor.rows as { test, info }, i (test.id)}
@@ -121,25 +121,12 @@
 </section>
 
 <style lang="scss">
-  .cases {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 12px 14px;
-
-    h2 {
-      margin: 0 0 8px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    ol {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 2px;
-    }
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
   }
 
   .case {
@@ -222,34 +209,9 @@
     }
   }
 
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .chip {
-    font-size: 12.5px;
-    padding: 1px 8px;
-    border-radius: 4px;
-    background: var(--bg);
-    border: 1px solid var(--grid);
-
-    i {
-      font-style: normal;
-      color: var(--muted);
-    }
-  }
-
   .warn {
     flex-basis: 100%;
     font-size: 12.5px;
     color: var(--danger);
-  }
-
-  .none {
-    color: var(--muted);
-    font-size: 12.5px;
   }
 </style>
