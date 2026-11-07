@@ -15,6 +15,9 @@ export default defineConfig({
       },
 
       adapter: adapter(),
+
+      // GitHub Pages serves project sites from /<repo>.
+      paths: { base: (process.env.BASE_PATH ?? "") as "" | `/${string}` },
     }),
   ],
   test: {
