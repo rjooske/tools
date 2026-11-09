@@ -231,6 +231,7 @@
   td {
     min-width: 40px;
     height: 30px;
+    padding: 0 10px;
     text-align: center;
     font-family: var(--font-mono);
     cursor: pointer;
