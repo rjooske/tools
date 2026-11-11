@@ -19,6 +19,7 @@ export const HINTS: Record<Mode, KeyHint[]> = {
     [["h", "l"], "class"],
     [["j", "k"], "test case"],
     [["x"], "toggle dot"],
+    [["w", "b"], "next / prev dot"],
     [["o"], "new test"],
     [["dd"], "delete test"],
     [["J", "K"], "move test"],
@@ -41,7 +42,7 @@ export const HELP_SECTIONS: KeySection[] = [
     title: "Tree mode",
     keys: [
       [["h", "l"], "Node to the left / right"],
-      [["j", "k"], "First child / parent"],
+      [["j", "k"], "First child / parent (j on a leaf class enters the grid)"],
       [["gg"], "Root"],
       [["i", "↵"], "Rename"],
       [["c"], "Rename, replacing the text"],
@@ -55,7 +56,11 @@ export const HELP_SECTIONS: KeySection[] = [
     title: "Grid mode",
     keys: [
       [["h", "l"], "Previous / next leaf class"],
-      [["j", "k"], "Next / previous test case"],
+      [
+        ["j", "k"],
+        "Next / previous test case (k on the first returns to the tree)",
+      ],
+      [["w", "b"], "Next / previous dot"],
       [["0", "$"], "First / last leaf class"],
       [["gg", "G"], "First / last test case"],
       [["x", "␣"], "Toggle dot"],
@@ -66,12 +71,46 @@ export const HELP_SECTIONS: KeySection[] = [
   },
 ];
 
+/** Room kept around the cursor when scrolling it into view. */
+const REVEAL_MARGIN = 32;
+
+/** How far to scroll so that [start, end] fits in [viewStart, viewEnd]. */
+function overshoot(
+  start: number,
+  end: number,
+  viewStart: number,
+  viewEnd: number,
+) {
+  if (start < viewStart) return start - viewStart;
+  if (end > viewEnd) return Math.min(end - viewEnd, start - viewStart);
+  return 0;
+}
+
 export class TreeKeys extends VimKeys<TreeEditor> {
   protected cursorElement() {
     const { mode, sel } = this.editor;
     return mode === "grid"
       ? document.getElementById("grid-cursor")
       : document.querySelector(`[data-node="${sel}"]`);
+  }
+
+  // Firefox's scrollIntoView on SVG elements can throw the canvas back to its
+  // left edge, so the canvas and the page are scrolled by hand.
+  protected reveal(cursor: Element) {
+    const m = REVEAL_MARGIN;
+    const canvas = cursor.closest(".canvas");
+    if (canvas) {
+      const r = cursor.getBoundingClientRect();
+      const left = canvas.getBoundingClientRect().left + canvas.clientLeft;
+      canvas.scrollLeft += overshoot(
+        r.left - m,
+        r.right + m,
+        left,
+        left + canvas.clientWidth,
+      );
+    }
+    const r = cursor.getBoundingClientRect();
+    window.scrollBy(0, overshoot(r.top - m, r.bottom + m, 0, innerHeight));
   }
 
   protected run(seq: string, n: number) {
@@ -88,6 +127,12 @@ export class TreeKeys extends VimKeys<TreeEditor> {
         return true;
       case "Escape":
         if (e.mode === "grid") e.setMode("tree");
+        return true;
+      case "j":
+        for (let i = 0; i < n; i++) e.cursorDown();
+        return true;
+      case "k":
+        for (let i = 0; i < n; i++) e.cursorUp();
         return true;
     }
     return e.mode === "tree"
@@ -106,12 +151,6 @@ export class TreeKeys extends VimKeys<TreeEditor> {
         return true;
       case "l":
         repeat(() => e.stepSideways(1));
-        return true;
-      case "j":
-        repeat(() => e.stepDown());
-        return true;
-      case "k":
-        repeat(() => e.stepUp());
         return true;
       case "gg":
         e.sel = ROOT_ID;
@@ -163,11 +202,11 @@ export class TreeKeys extends VimKeys<TreeEditor> {
       case "l":
         e.gridCol = Math.min(lastCol, e.gridCol + n);
         return true;
-      case "k":
-        e.gridRow = Math.max(0, e.gridRow - n);
+      case "w":
+        repeat(() => e.gridJumpToDot(1));
         return true;
-      case "j":
-        e.gridRow = Math.min(lastRow, e.gridRow + n);
+      case "b":
+        repeat(() => e.gridJumpToDot(-1));
         return true;
       case "0":
         e.gridCol = 0;

@@ -51,10 +51,12 @@ export abstract class VimKeys<E extends AnyDocumentEditor> {
 
   async #scrollToCursor() {
     await tick();
-    this.cursorElement()?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
+    const cursor = this.cursorElement();
+    if (cursor) this.reveal(cursor);
+  }
+
+  protected reveal(cursor: Element) {
+    cursor.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
   #undo() {

@@ -90,3 +90,23 @@ test("dragging a case reorders the test cases", async ({ page }) => {
   await expect(chips(0)).not.toHaveText("length: 0");
   await expect(chips(2)).toHaveText("length: 0");
 });
+
+test("j and k cross between a leaf class and the grid", async ({ page }) => {
+  const mode = page.locator(".app");
+  const row = page.locator(".row.cur .rowlabel");
+  await page.keyboard.press("j");
+  await page.keyboard.press("j");
+  await expect(page.getByLabel("Class 0")).toHaveClass(/sel/);
+
+  await page.keyboard.press("j");
+  await expect(mode).toHaveAttribute("data-mode", "grid");
+  await expect(row).toHaveText("tc1");
+
+  await page.keyboard.press("w");
+  await expect(row).toHaveText("tc2");
+
+  await page.keyboard.press("2");
+  await page.keyboard.press("k");
+  await expect(mode).toHaveAttribute("data-mode", "tree");
+  await expect(page.getByLabel("Class no").first()).toHaveClass(/sel/);
+});

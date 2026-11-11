@@ -21,10 +21,14 @@ type Pos = {
 
 export type Line = { x1: number; y1: number; x2: number; y2: number };
 
+export type Span = { x1: number; x2: number };
+
 export type TreeLayout = {
   pos: Record<string, Pos>;
   edges: Line[];
   leaves: Class[];
+  /** Runs of adjacent leaves that share a parent classification. */
+  groups: Span[];
   maxDepth: number;
   width: number;
 };
@@ -32,6 +36,7 @@ export type TreeLayout = {
 export function layoutTree(tree: Tree, measure: Measure): TreeLayout {
   const pos: Record<string, Pos> = {};
   const leaves: Class[] = [];
+  const leafParents: string[] = [];
   let x = LEFT;
   let maxDepth = 1;
 
@@ -55,7 +60,7 @@ export function layoutTree(tree: Tree, measure: Measure): TreeLayout {
       x += w;
       return;
     }
-    c.classes.forEach((k) => placeClass(k, depth + 1));
+    c.classes.forEach((k) => placeClass(k, c.id, depth + 1));
     const span = x - start;
     if (span < need) {
       const extra = need - span;
@@ -67,7 +72,7 @@ export function layoutTree(tree: Tree, measure: Measure): TreeLayout {
     pos[c.id] = { x: (first.x + last.x) / 2, depth, width };
   }
 
-  function placeClass(k: Class, depth: number) {
+  function placeClass(k: Class, parentId: string, depth: number) {
     maxDepth = Math.max(maxDepth, depth);
     const width = measure(label(k.name), 400);
     const need = width + 20;
@@ -77,6 +82,7 @@ export function layoutTree(tree: Tree, measure: Measure): TreeLayout {
       pos[k.id] = { x: start + w / 2, depth, width, leaf: true };
       x += w;
       leaves.push(k);
+      leafParents.push(parentId);
       return;
     }
     k.children.forEach((c) => placeClassification(c, depth + 1));
@@ -130,5 +136,14 @@ export function layoutTree(tree: Tree, measure: Measure): TreeLayout {
   };
   top.forEach((c) => connectClassification(pos[tree.root.id], 5, c));
 
-  return { pos, edges, leaves, maxDepth, width: Math.max(x, LEFT + 220) };
+  const width = Math.max(x, LEFT + 220);
+  const groups: Span[] = [];
+  leaves.forEach((leaf, i) => {
+    if (i > 0 && leafParents[i] === leafParents[i - 1]) return;
+    const x1 = i ? (pos[leaves[i - 1].id].x + pos[leaf.id].x) / 2 : LEFT - 8;
+    if (groups.length) groups[groups.length - 1].x2 = x1;
+    groups.push({ x1, x2: width + 4 });
+  });
+
+  return { pos, edges, leaves, groups, maxDepth, width };
 }

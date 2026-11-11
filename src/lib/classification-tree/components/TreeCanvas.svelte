@@ -51,6 +51,20 @@
       <line class="edge" {...edge} />
     {/each}
 
+    {#if editor.rows.length}
+      {#each layout.groups as group, i (i)}
+        {#if i % 2}
+          <rect
+            class="group-band"
+            x={group.x1}
+            y={gridTop}
+            width={group.x2 - group.x1}
+            height={gridBottom - gridTop}
+          />
+        {/if}
+      {/each}
+    {/if}
+
     {#if editor.gridCursorVisible}
       <rect
         class="cursor-band"
@@ -403,6 +417,11 @@
     .tree &:hover text {
       fill: var(--danger);
     }
+  }
+
+  .group-band {
+    fill: var(--ink);
+    fill-opacity: 0.06;
   }
 
   .cursor-band {

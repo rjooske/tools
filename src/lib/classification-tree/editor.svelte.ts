@@ -302,6 +302,27 @@ export class TreeEditor extends DocumentEditor<Tree> {
     });
   }
 
+  /** Moves to the next or previous dot, reading row by row. */
+  gridJumpToDot(dir: -1 | 1) {
+    const tests = this.current.tests;
+    const leaves = this.layout.leaves;
+    const cols = leaves.length;
+    for (
+      let i = this.gridRow * cols + this.gridCol + dir;
+      i >= 0 && i < tests.length * cols;
+      i += dir
+    ) {
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      if (tests[row].picks.includes(leaves[col].id)) {
+        this.gridRow = row;
+        this.gridCol = col;
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Returns false at either end, so that counted moves stop there. */
   gridMoveTest(dir: -1 | 1) {
     const tests = this.current.tests;
@@ -311,6 +332,30 @@ export class TreeEditor extends DocumentEditor<Tree> {
     this.gridRow = to;
     this.moveTest(id, to);
     return true;
+  }
+
+  // Cursor across both modes: the grid hangs below the tree's leaf classes.
+
+  cursorDown() {
+    if (this.mode === "grid") {
+      const lastRow = Math.max(0, this.current.tests.length - 1);
+      this.gridRow = Math.min(lastRow, this.gridRow + 1);
+    } else if (
+      this.selected.kind === "class" &&
+      this.selected.node.children.length === 0
+    ) {
+      if (!this.current.tests.length) return;
+      this.gridRow = 0;
+      this.setMode("grid");
+    } else {
+      this.stepDown();
+    }
+  }
+
+  cursorUp() {
+    if (this.mode === "tree") this.stepUp();
+    else if (this.gridRow > 0) this.gridRow--;
+    else this.setMode("tree");
   }
 
   // Tree cursor
