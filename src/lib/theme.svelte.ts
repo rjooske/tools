@@ -1,6 +1,5 @@
 import { MediaQuery } from "svelte/reactivity";
-
-const KEY = "tools-theme";
+import { THEME_KEY as KEY } from "./storage-keys";
 
 type ThemeName = "light" | "dark";
 

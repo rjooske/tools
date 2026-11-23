@@ -1,4 +1,5 @@
 import { DocumentEditor } from "../document-editor.svelte";
+import { TABLE_STORE_KEY as STORE_KEY } from "../storage-keys";
 import { examples } from "./examples";
 import {
   analyse,
@@ -22,8 +23,6 @@ import {
   type Entries,
   type SortOrder,
 } from "./model";
-
-const STORE_KEY = "dt-editor-v1";
 
 export type Row =
   | { kind: "condition"; node: Condition; index: number }

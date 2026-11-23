@@ -1,4 +1,8 @@
 import { DocumentEditor } from "../document-editor.svelte";
+import {
+  TREE_DOTS_KEY as DOTS_KEY,
+  TREE_STORE_KEY as STORE_KEY,
+} from "../storage-keys";
 import { examples } from "./examples";
 import { layoutTree, type Measure } from "./layout";
 import {
@@ -28,8 +32,6 @@ import {
 
 export type Mode = "tree" | "grid";
 
-const STORE_KEY = "ct-editor-v1";
-const DOTS_KEY = "ct-editor-dots";
 /** Must match --font-ui, or node boxes won't fit their labels. */
 const FONT = "system-ui, sans-serif";
 
